@@ -15,11 +15,12 @@ This is a mod for TGM4 that replace all the charaters in KONOHA game mode with H
 
 To install this mod, you need to know how to use the [TGM4 MOD](https://github.com/rishubil/tgm4-mod).
 
-1. Unpack the game files using the TGM4 MOD
-2. Remove the `resources/extracted_textures` directory
-3. Copy `extracted_textures` of this mod into the `resources/extracted_textures` directory
-4. Repack the game files using the TGM4 MOD
-5. Copy `resources/packed_gamefiles` to your TGM4 installation directory
+1. Download `tgm4-konoha-hololive.zip` from the [releases page](https://github.com/yf-dev/tgm4-konoha-hololive/releases)
+2. Unpack the game files using the TGM4 MOD
+3. Remove the `resources/extracted_textures` directory
+4. Copy `extracted_textures` from `tgm4-konoha-hololive.zip` into the `resources/extracted_textures` directory
+5. Repack the game files using the TGM4 MOD
+6. Copy `resources/packed_gamefiles` to your TGM4 installation directory
 
 ## License
 
