@@ -4,6 +4,8 @@ This is a mod for TGM4 that replace all the charaters in KONOHA game mode with H
 
 ![Screenshot](screenshot.png)
 
+[Watch Play Demo Video](https://www.youtube.com/watch?v=IkiuKzF6EOM)
+
 > [!WARNING]  
 > This project is not an official project of Hololive Production.
 >
