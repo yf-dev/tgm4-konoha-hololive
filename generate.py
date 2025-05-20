@@ -1,7 +1,9 @@
+import math
 import os
 from typing import Literal
 
 from PIL import Image, ImageDraw, ImageFont
+from tqdm import tqdm
 
 from characters import CHARACTER_MAP, Character
 
@@ -151,7 +153,7 @@ def generate_girlname_texture(characters: list[Character]) -> list[Image.Image]:
     images = []
 
     # chunk the characters list into 5 elements each
-    for i in range(0, len(characters) // 5):
+    for i in tqdm(range(0, len(characters) // 5), desc="Generating girlname textures"):
         chunk_images = []
         for j in range(5):
             index = i * 5 + j
@@ -212,7 +214,7 @@ def generate_icons(characters: list[Character]) -> list[Image.Image]:
     results = []
     for type_ in types_:
         icons = []
-        for character in characters:
+        for character in tqdm(characters, desc=f"Generating {type_} icons"):
             icon = generate_single_icon(character, type_)
             icons.append(icon)
         # Create a merged image from the icons, 10x5 grid
@@ -228,32 +230,174 @@ def generate_icons(characters: list[Character]) -> list[Image.Image]:
     return results
 
 
-def copy_egm(characters: list[Character]):
-    os.makedirs("extracted_textures/eff/egm", exist_ok=True)
+def apply_drop_shadow(
+    image: Image.Image, angle: int, distance: int, opacity: float
+) -> Image.Image:
+    """
+    Apply a drop shadow to an image
 
-    counter = 1
-    for character in characters:
-        for i in range(1, 4):
-            source_path = f"characters/{character.id}/{i}.png"
-            output_path = f"extracted_textures/eff/egm/egm{counter:02}.twx.png"
-            print(f"Copying {source_path} to {output_path}")
-            with open(source_path, "rb") as source_file:
-                with open(output_path, "wb") as output_file:
-                    output_file.write(source_file.read())
-            counter += 1
+    Args:
+        image: The source image with transparency
+        angle: The angle of the shadow in degrees (0-360)
+        distance: The distance of the shadow in pixels
+        opacity: The opacity of the shadow (0.0-1.0)
+
+    Returns:
+        A new image with the drop shadow applied, preserving original size
+    """
+    # Convert angle to radians and use trigonometry for accurate positioning
+    angle_rad = math.radians(angle)
+    x_offset = int(distance * math.cos(angle_rad))
+    y_offset = int(distance * math.sin(angle_rad))
+
+    # Get original image size
+    width, height = image.size
+
+    # Create a result canvas with the SAME size as the original image
+    result = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+
+    # Create the shadow image
+    shadow = Image.new("RGBA", image.size, (0, 0, 0, 0))
+
+    # Use the original image as a mask with reduced opacity
+    shadow_mask = Image.new("L", image.size, 0)
+    shadow_mask.paste(
+        Image.new("L", image.size, int(255 * opacity)), (0, 0), image.split()[3]
+    )
+
+    # Create black shadow with original image's alpha channel
+    black_image = Image.new("RGB", image.size, (0, 0, 0))
+    shadow = Image.merge(
+        "RGBA",
+        (
+            black_image.split()[0],
+            black_image.split()[1],
+            black_image.split()[2],
+            shadow_mask,
+        ),
+    )
+
+    # Create a temporary larger canvas that can hold both the image and shadow
+    # This is just for positioning and will be cropped back to original size
+    temp_width = width + abs(x_offset)
+    temp_height = height + abs(y_offset)
+    temp_canvas = Image.new("RGBA", (temp_width, temp_height), (0, 0, 0, 0))
+
+    # Calculate where the shadow should go in the temp canvas
+    if x_offset >= 0:
+        shadow_x = x_offset
+        image_x = 0
+    else:
+        shadow_x = 0
+        image_x = abs(x_offset)
+
+    if y_offset >= 0:
+        shadow_y = y_offset
+        image_y = 0
+    else:
+        shadow_y = 0
+        image_y = abs(y_offset)
+
+    # Paste the shadow and original image onto the temp canvas
+    temp_canvas.paste(shadow, (shadow_x, shadow_y), shadow)
+    temp_canvas.paste(image, (image_x, image_y), image)
+
+    # Crop the temp canvas back to the original image size
+    # This ensures we maintain the original dimensions
+    crop_x = max(0, -x_offset)
+    crop_y = max(0, -y_offset)
+    result = temp_canvas.crop((crop_x, crop_y, crop_x + width, crop_y + height))
+
+    return result
+
+
+def generate_egm_image(
+    character: Character, type_: Literal[None, "grad1", "grad2"]
+) -> Image.Image:
+    shadow_angle = 45
+    shadow_distance = 45
+    shadow_opacity = 0.65
+
+    egm_path = f"characters/{character.id}/egm.png"
+    egm_image = Image.open(egm_path).convert("RGBA")
+
+    if type_ == "grad1":
+        overlay_path = "egm_grad1.png"
+    elif type_ == "grad2":
+        overlay_path = "egm_grad2.png"
+    else:
+        # Apply drop shadow to the original image and return
+        return apply_drop_shadow(
+            egm_image,
+            angle=shadow_angle,
+            distance=shadow_distance,
+            opacity=shadow_opacity,
+        )
+
+    overlay_image = Image.open(overlay_path).convert("RGBA")
+
+    # Resize overlay if needed
+    if overlay_image.size != egm_image.size:
+        overlay_image = overlay_image.resize(egm_image.size, Image.Resampling.LANCZOS)
+
+    # Create a new blank image
+    result = Image.new("RGBA", egm_image.size, (0, 0, 0, 0))
+
+    # Split the images into their RGBA bands
+    _, _, _, a_egm = egm_image.split()
+    _, _, _, a_overlay = overlay_image.split()
+
+    # Create a composite image that:
+    # 1. Uses the overlay RGB values where the overlay is opaque
+    # 2. Uses the original egm RGB values where the overlay is transparent
+    # 3. Maintains the original egm transparency (alpha channel)
+
+    # Create a new image with the size of egm_image
+    result = Image.new("RGBA", egm_image.size, (0, 0, 0, 0))
+
+    # Use composite operation which respects alpha channels
+    # This applies the overlay on top of the egm_image where overlay is not transparent
+    result = Image.composite(overlay_image, egm_image, a_overlay)
+
+    # Keep the original alpha channel of egm_image
+    r, g, b, _ = result.split()
+    result = Image.merge("RGBA", (r, g, b, a_egm))
+
+    # Apply drop shadow to the final result
+    result = apply_drop_shadow(
+        result, angle=shadow_angle, distance=shadow_distance, opacity=shadow_opacity
+    )
+
+    return result
+
+
+def generate_emgs(characters: list[Character]) -> list[Image.Image]:
+    images = []
+    for character in tqdm(characters, desc="Generating egm images"):
+        types_ = ["grad2", "grad1", None]
+        for type_ in types_:
+            image = generate_egm_image(character, type_)
+            images.append(image)
+    return images
 
 
 if __name__ == "__main__":
     characters = [CHARACTER_MAP[character_id] for character_id in character_id_list]
     os.makedirs("extracted_textures/ui", exist_ok=True)
-    images = generate_girlname_texture(characters)
-    for i, img in enumerate(images):
-        filepath = f"extracted_textures/ui/girlname{i}.twx.png"
-        img.save(filepath, "PNG")
-        print(f"Saved image to {filepath}")
-    icons = generate_icons(characters)
-    for i, icon in enumerate(icons):
-        filepath = f"extracted_textures/ui/icon{i:02}.twx.png"
-        icon.save(filepath, "PNG")
-        print(f"Saved image to {filepath}")
-    copy_egm(characters)
+    # images = generate_girlname_texture(characters)
+    # for i, img in tqdm(
+    #     enumerate(images), total=len(images), desc="Saving girlname textures"
+    # ):
+    #     filepath = f"extracted_textures/ui/girlname{i}.twx.png"
+    #     img.save(filepath, "PNG")
+    # icons = generate_icons(characters)
+    # for i, icon in tqdm(
+    #     enumerate(icons), total=len(icons), desc="Saving icon textures"
+    # ):
+    #     filepath = f"extracted_textures/ui/icon{i:02}.twx.png"
+    #     icon.save(filepath, "PNG")
+    os.makedirs("extracted_textures/eff/egm", exist_ok=True)
+    emgs = generate_emgs(characters)
+    for i, emg in tqdm(enumerate(emgs), total=len(emgs), desc="Saving egm textures"):
+        filepath = f"extracted_textures/eff/egm/egm{i:02}.twx.png"
+        emg.save(filepath, "PNG")
