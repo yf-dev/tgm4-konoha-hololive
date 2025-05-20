@@ -1,0 +1,20 @@
+[project]
+name = "tgm4-konoha-hololive"
+version = "0.1.0"
+description = "TGM4 MOD - KONOHA Hololive"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "pillow>=11.2.1",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.11.10",
+]
+
+[tool.ruff.lint]
+# Enable isort (`I`).
+extend-select = ["I"]
+# Disable fix for unused imports (`F401`) and unused variables (`F841`).
+unfixable = ["F401", "F841"]
