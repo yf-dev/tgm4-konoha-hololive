@@ -384,20 +384,20 @@ def generate_emgs(characters: list[Character]) -> list[Image.Image]:
 if __name__ == "__main__":
     characters = [CHARACTER_MAP[character_id] for character_id in character_id_list]
     os.makedirs("extracted_textures/ui", exist_ok=True)
-    # images = generate_girlname_texture(characters)
-    # for i, img in tqdm(
-    #     enumerate(images), total=len(images), desc="Saving girlname textures"
-    # ):
-    #     filepath = f"extracted_textures/ui/girlname{i}.twx.png"
-    #     img.save(filepath, "PNG")
-    # icons = generate_icons(characters)
-    # for i, icon in tqdm(
-    #     enumerate(icons), total=len(icons), desc="Saving icon textures"
-    # ):
-    #     filepath = f"extracted_textures/ui/icon{i:02}.twx.png"
-    #     icon.save(filepath, "PNG")
+    images = generate_girlname_texture(characters)
+    for i, img in tqdm(
+        enumerate(images), total=len(images), desc="Saving girlname textures"
+    ):
+        filepath = f"extracted_textures/ui/girlname{i}.twx.png"
+        img.save(filepath, "PNG")
+    icons = generate_icons(characters)
+    for i, icon in tqdm(
+        enumerate(icons), total=len(icons), desc="Saving icon textures"
+    ):
+        filepath = f"extracted_textures/ui/icon{i:02}.twx.png"
+        icon.save(filepath, "PNG")
     os.makedirs("extracted_textures/eff/egm", exist_ok=True)
     emgs = generate_emgs(characters)
     for i, emg in tqdm(enumerate(emgs), total=len(emgs), desc="Saving egm textures"):
-        filepath = f"extracted_textures/eff/egm/egm{i:02}.twx.png"
+        filepath = f"extracted_textures/eff/egm/egm{i + 1:02}.twx.png"
         emg.save(filepath, "PNG")
